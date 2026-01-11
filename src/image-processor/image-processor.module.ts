@@ -3,5 +3,6 @@ import { ImageProcessorService } from './image-processor.service';
 
 @Module({
   providers: [ImageProcessorService],
+  exports: [ImageProcessorService],
 })
-export class ImageProcessorModule {}
+export class ImageProcessorModule { }
