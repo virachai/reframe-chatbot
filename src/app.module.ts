@@ -13,8 +13,8 @@ import { ImageProcessorModule } from './image-processor/image-processor.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
     }),
-    // ChatbotModule,
-    // ImageProcessorModule,
+    ChatbotModule,
+    ImageProcessorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
