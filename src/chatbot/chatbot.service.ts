@@ -6,9 +6,9 @@ import {
   type WebhookEvent,
 } from '@line/bot-sdk';
 import { Injectable, Logger } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
-import type { CloudinaryService } from '../cloudinary/cloudinary.service';
-import type { ImageProcessorService } from '../image-processor/image-processor.service';
+import { ConfigService } from '@nestjs/config';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { ImageProcessorService } from '../image-processor/image-processor.service';
 
 @Injectable()
 export class ChatbotService {
