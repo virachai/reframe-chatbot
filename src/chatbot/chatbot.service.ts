@@ -82,6 +82,19 @@ export class ChatbotService {
       const uploadResult = await this.imageProcessorService.uploadImage(buffer);
       this.logger.log('Image uploaded to Cloudinary:', uploadResult.public_id);
 
+      // DEFAULT: Amazon Rekognition via Cloudinary Add-on
+      const rekResult: any = await this.imageProcessorService.detectWithRekognition(buffer);
+      if (rekResult) {
+        this.logger.log('Rekognition Tags:', JSON.stringify(rekResult.tags));
+        this.logger.log('Rekognition Detections:', JSON.stringify(rekResult.detections));
+      }
+
+      // Option 2: AWS Lambda (MediaPipe - Fast & Accurate Bboxes)
+      // const lambdaDetections = await this.imageProcessorService.detectWithLambda(buffer);
+
+      // Option 3: Amazon Bedrock (VLM - Descriptive)
+      // const bedrockDetections = await this.imageProcessorService.detectWithBedrock(buffer);
+
       // Generate Rule of Thirds variations
       const variations = await this.imageProcessorService.getRuleOfThirdsVariations(
         uploadResult.public_id,
