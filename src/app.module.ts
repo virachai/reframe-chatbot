@@ -19,4 +19,4 @@ import { ImageProcessorModule } from './image-processor/image-processor.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

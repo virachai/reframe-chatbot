@@ -6,8 +6,9 @@ import {
   type WebhookEvent,
 } from '@line/bot-sdk';
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ImageProcessorService } from '../image-processor/image-processor.service';
+import type { ConfigService } from '@nestjs/config';
+import type { CloudinaryService } from '../cloudinary/cloudinary.service';
+import type { ImageProcessorService } from '../image-processor/image-processor.service';
 
 @Injectable()
 export class ChatbotService {
@@ -17,6 +18,7 @@ export class ChatbotService {
   constructor(
     private configService: ConfigService,
     private imageProcessorService: ImageProcessorService,
+    private cloudinaryService: CloudinaryService,
   ) {
     const accessToken = this.configService.get<string>('LINE_CHANNEL_ACCESS_TOKEN');
     const channelSecret = this.configService.get<string>('LINE_CHANNEL_SECRET');
@@ -32,7 +34,7 @@ export class ChatbotService {
   }
 
   async handleEvents(events: WebhookEvent[], signature: string) {
-    const channelSecret = this.configService.get<string>('LINE_CHANNEL_SECRET')!;
+    const channelSecret = this.configService.get<string>('LINE_CHANNEL_SECRET') ?? '';
     if (!validateSignature(JSON.stringify({ events }), channelSecret, signature)) {
       // this.logger.error('Invalid signature');
       // return;
@@ -79,11 +81,15 @@ export class ChatbotService {
       const buffer = Buffer.concat(chunks);
 
       // Upload to Cloudinary
-      const uploadResult = await this.imageProcessorService.uploadImage(buffer);
+      const uploadResult = await this.cloudinaryService.uploadBuffer(buffer);
       this.logger.log('Image uploaded to Cloudinary:', uploadResult.public_id);
 
       // DEFAULT: Amazon Rekognition via Cloudinary Add-on
-      const rekResult: any = await this.imageProcessorService.detectWithRekognition(buffer);
+      const rekResult = (await this.imageProcessorService.detectWithRekognition(buffer)) as {
+        tags: string[];
+        detections: unknown[];
+      };
+
       if (rekResult) {
         this.logger.log('Rekognition Tags:', JSON.stringify(rekResult.tags));
         this.logger.log('Rekognition Detections:', JSON.stringify(rekResult.detections));

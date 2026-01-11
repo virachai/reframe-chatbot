@@ -6,42 +6,40 @@
 
 ```mermaid
 sequenceDiagram
-    participant U as User (LINE App)
-    participant L as LINE Platform
-    participant N as NestJS Backend
-    participant C as Cloudinary API
-    participant R as AWS Rekognition (Add-on)
-    participant W as AWS Lambda (MediaPipe)
-    participant B as Amazon Bedrock (Vision)
+    autonumber
+    participant U as User
+    participant L as LINE
+    participant N as NestJS
+    participant C as Cloudinary
+    participant R as Rekognition
+    participant W as Lambda
+    participant B as Bedrock
 
-    U->>L: ส่งรูปภาพ Portrait
-    L->>N: Webhook (Image Message)
+    U->>L: Send Portrait Image
+    L->>N: Webhook Event
     
-    N->>L: ส่งข้อความ "Analyzing photo..."
-    N->>L: ดึงข้อมูล Image Binary
+    N->>L: Reply "Analyzing..."
     
-    rect rgb(240, 240, 240)
-        Note right of N: Process Image
-        N->>C: Upload & Execute Add-ons (Default)
-        C->>R: เรียกใช้ Rekognition Tag/Detect
-        R-->>C: ส่งคืนข้อมูล Tags & Bboxes
-        C-->>N: ส่งคืน Public ID + Detection Data
+    Note over N,C: Standard Detection
+    N->>C: Upload & Rekognition
+    C->>R: Process Image
+    R-->>C: Tags & Bboxes
+    C-->>N: Public ID & Detection
+
+    alt Optional: MediaPipe
+        N->>W: Process Lambda
+        W-->>N: Fast Bboxes
+    else Optional: Bedrock
+        N->>B: Analyze Vision
+        B-->>N: Deep Context
     end
 
-    alt Optional Detection
-        N->>W: (Optional) เรียกใช้ Lambda + MediaPipe
-        W-->>N: ส่งคืนแม่นยำ Bboxes (TFLite)
-    else Advanced AI
-        N->>B: (Optional) เรียกใช้ Bedrock (Claude 3 Vision)
-        B-->>N: ส่งคืนเชิงบรรยาย (Description)
-    end
+    Note right of N: Reframing Logic
+    N->>C: Generate 5 Variations
+    C-->>N: Return Image URLs
 
-    Note right of N: Image Reframing (Rule of Thirds)
-    N->>C: สร้าง 5 Variations (Transforms)
-    C-->>N: ส่งคืน 5 Image URLs
-
-    N->>L: ตอบกลับด้วย Flex Message/Carousel
-    L->>U: แสดงผลภาพที่ Reframe แล้ว
+    N->>L: Send Carousel Result
+    L->>U: Show Reframed Images
 ```
 
 ---

@@ -1,9 +1,10 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { HttpService } from '@nestjs/axios';
+import type { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import type { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
 import { firstValueFrom } from 'rxjs';
+import type { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ImageProcessorService {
@@ -14,13 +15,8 @@ export class ImageProcessorService {
   constructor(
     private configService: ConfigService,
     private readonly httpService: HttpService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {
-    cloudinary.config({
-      cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.configService.get('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
-    });
-
     this.bedrockClient = new BedrockRuntimeClient({
       region: this.configService.get('AWS_REGION') || 'us-east-1',
       credentials: {
@@ -31,17 +27,7 @@ export class ImageProcessorService {
   }
 
   async uploadImage(imageBuffer: Buffer): Promise<UploadApiResponse> {
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: 'reframe-chatbot/original' },
-        (error, result) => {
-          if (error) return reject(error);
-          if (!result) return reject(new Error('Cloudinary upload failed: No result'));
-          resolve(result);
-        },
-      );
-      uploadStream.end(imageBuffer);
-    });
+    return this.cloudinaryService.uploadBuffer(imageBuffer, 'reframe-chatbot/original');
   }
 
   async uploadFromUrl(url: string): Promise<UploadApiResponse> {
@@ -61,23 +47,25 @@ export class ImageProcessorService {
    */
   async detectWithRekognition(buffer: Buffer) {
     return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: 'reframe-chatbot/detection',
-          aws_rek_detection: 0.5, // Detect objects and bounding boxes
-          aws_rek_tagging: 0.5,    // Generate tags for search
-          auto_tagging: 0.5,
-        },
-        (error, result) => {
-          if (error) return reject(error);
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: 'reframe-chatbot/detection',
+            aws_rek_detection: 0.5, // Detect objects and bounding boxes
+            aws_rek_tagging: 0.5, // Generate tags for search
+            auto_tagging: 0.5,
+          },
+          (error, result) => {
+            if (error) return reject(error);
 
-          // Extract detection data (bounding boxes) and tags
-          const detectionData = result?.info?.detection?.object_detection?.data || [];
-          const tags = result?.tags || [];
+            // Extract detection data (bounding boxes) and tags
+            const detectionData = result?.info?.detection?.object_detection?.data || [];
+            const tags = result?.tags || [];
 
-          resolve({ tags, detections: detectionData });
-        },
-      ).end(buffer);
+            resolve({ tags, detections: detectionData });
+          },
+        )
+        .end(buffer);
     });
   }
 
@@ -86,17 +74,19 @@ export class ImageProcessorService {
    */
   async detectWithCloudinary(buffer: Buffer) {
     return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: 'reframe-chatbot/detection',
-          detection: 'gs_object_detection', // Google Scene & Object Detection
-          auto_tagging: 0.5
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result?.info?.detection?.object_detection?.data || []);
-        },
-      ).end(buffer);
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: 'reframe-chatbot/detection',
+            detection: 'gs_object_detection', // Google Scene & Object Detection
+            auto_tagging: 0.5,
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result?.info?.detection?.object_detection?.data || []);
+          },
+        )
+        .end(buffer);
     });
   }
 
@@ -139,27 +129,29 @@ export class ImageProcessorService {
    */
   async detectWithBedrock(imageBuffer: Buffer) {
     try {
-      const modelId = this.configService.get<string>('BEDROCK_MODEL_ID') || 'anthropic.claude-3-haiku-20240307-v1:0';
+      const modelId =
+        this.configService.get<string>('BEDROCK_MODEL_ID') ||
+        'anthropic.claude-3-haiku-20240307-v1:0';
       const base64Image = imageBuffer.toString('base64');
 
       const payload = {
-        anthropic_version: "bedrock-2023-05-31",
+        anthropic_version: 'bedrock-2023-05-31',
         max_tokens: 500,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: [
               {
-                type: "image",
+                type: 'image',
                 source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
+                  type: 'base64',
+                  media_type: 'image/jpeg',
                   data: base64Image,
                 },
               },
               {
-                type: "text",
-                text: "Detect all objects in this image and return as a JSON list of objects with labels and brief descriptions of their positions.",
+                type: 'text',
+                text: 'Detect all objects in this image and return as a JSON list of objects with labels and brief descriptions of their positions.',
               },
             ],
           },
@@ -168,8 +160,8 @@ export class ImageProcessorService {
 
       const command = new InvokeModelCommand({
         modelId,
-        contentType: "application/json",
-        accept: "application/json",
+        contentType: 'application/json',
+        accept: 'application/json',
         body: JSON.stringify(payload),
       });
 
